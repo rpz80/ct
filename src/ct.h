@@ -4,6 +4,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/types.h>
+#include <regex.h>
 
 #define ANSI_COLOR_RED     "\x1b[31m"
 #define ANSI_COLOR_GREEN   "\x1b[32m"
@@ -44,7 +46,7 @@
 #define ASSERT_TRUE(expr) \
     do { \
         if (!(expr)) { \
-            printf(ANSI_COLOR_RED ">>>> ASSERT_TRUE(%s) failed! File: %s, line: %d\n", #expr, __FILE__, __LINE__); \
+            fprintf(stderr, ANSI_COLOR_RED ">>>> ASSERT_TRUE(%s) failed! File: %s, line: %d\n", #expr, __FILE__, __LINE__); \
             _CT_FAILURE() \
         } \
     } while (0)
@@ -52,8 +54,8 @@
 #define ASSERT_EQ_INT(expected, actual) \
     do { \
         if ((expected) != (actual)) { \
-            printf(ANSI_COLOR_RED ">>>> ASSERT_EQ(%s (%lld), %s (%lld)) failed! File: %s, line: %d\n", \
-                #expected, (long long) expected, #actual, (long long) actual, __FILE__, __LINE__); \
+            fprintf(stderr, ANSI_COLOR_RED ">>>> ASSERT_EQ_INT(%s (%lld), %s (%lld)) failed! File: %s, line: %d\n", \
+                #expected, (long long) (expected), #actual, (long long) (actual), __FILE__, __LINE__); \
             _CT_FAILURE() \
         } \
     } while (0)
@@ -61,8 +63,8 @@
 #define ASSERT_LT_INT(expr1, expr2) \
     do { \
         if (!((expr1) < (expr2))) { \
-            printf(ANSI_COLOR_RED ">>>> ASSERT_LT(%s (%d), %s (%d)) failed! File: %s, line: %d\n", \
-                #expr1, expr1, #expr2, expr2, __FILE__, __LINE__); \
+            fprintf(stderr, ANSI_COLOR_RED ">>>> ASSERT_LT_INT(%s (%d), %s (%d)) failed! File: %s, line: %d\n", \
+                #expr1, (expr1), #expr2, (expr2), __FILE__, __LINE__); \
             _CT_FAILURE() \
         } \
     } while (0)
@@ -70,8 +72,17 @@
 #define ASSERT_LE_INT(expr1, expr2) \
     do { \
         if (!((expr1) <= (expr2))) { \
-            printf(ANSI_COLOR_RED ">>>> ASSERT_LE(%s (%d), %s (%d)) failed! File: %s, line: %d\n", \
-                #expr1, expr1, #expr2, expr2, __FILE__, __LINE__); \
+            fprintf(stderr, ANSI_COLOR_RED ">>>> ASSERT_LE_INT(%s (%d), %s (%d)) failed! File: %s, line: %d\n", \
+                #expr1, (expr1), #expr2, (expr2), __FILE__, __LINE__); \
+            _CT_FAILURE() \
+        } \
+    } while (0)
+
+#define ASSERT_EQ_PTR(expected, actual) \
+    do { \
+        if ((expected) != (actual)) { \
+            fprintf(stderr, ANSI_COLOR_RED ">>>> ASSERT_EQ_PTR(%s (%p), %s (%p)) failed! File: %s, line: %d\n", \
+                #expected, (expected), #actual, (actual), __FILE__, __LINE__); \
             _CT_FAILURE() \
         } \
     } while (0)
@@ -79,7 +90,7 @@
 #define ASSERT_EQ_MEM(expected, actual, len) \
     do { \
         if (memcmp((expected), (actual), (len)) != 0) { \
-            printf(ANSI_COLOR_RED ">>>> ASSERT_EQ_MEM(%s, %s) failed! File: %s, line: %d\n", \
+            fprintf(stderr, ANSI_COLOR_RED ">>>> ASSERT_EQ_MEM(%s, %s) failed! File: %s, line: %d\n", \
                 #expected, #actual, __FILE__, __LINE__); \
             _CT_FAILURE() \
         } \
@@ -90,7 +101,8 @@ struct ct_state {
     int shuffle;
     int exit_on_fail;
     int failed;
-    char* filter;
+    int use_filter;
+    regex_t filter_regex;
 };
 
 extern struct ct_state _ct_state;

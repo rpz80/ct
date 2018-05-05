@@ -6,6 +6,8 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <sys/time.h>
+#include <sys/types.h>
+#include <regex.h>
 
 struct ct_state _ct_state;
 
@@ -28,6 +30,7 @@ static void print_help()
         "  -r count   repeat tests count times\n"
         "  -s         random shuffle tests\n"
         "  -e         exit on fail\n"
+        "  -f         filter (regular expression)\n"
         "  -h         print this help\n");
 
     exit(EXIT_SUCCESS);
@@ -38,7 +41,7 @@ int ct_initialize(int argc, char *argv[])
     int ch;
 
     memset(&_ct_state, 0, sizeof(_ct_state));
-    while ((ch = getopt(argc, argv, "hr:se")) != -1) {
+    while ((ch = getopt(argc, argv, "hr:sef:")) != -1) {
         switch (ch) {
         case 'r':
             _ct_state.repeat = get_int(optarg);
@@ -48,6 +51,13 @@ int ct_initialize(int argc, char *argv[])
             break;
         case 'e':
             _ct_state.exit_on_fail = 1;
+            break;
+        case 'f':
+            if (regcomp(&_ct_state.filter_regex, optarg, REG_EXTENDED | REG_ICASE | REG_NOSUB)) {
+                fprintf(stderr, "Invalid filter string\n");
+                exit(EXIT_FAILURE);
+            }
+            _ct_state.use_filter = 1;
             break;
         case '?':
         case ':':
@@ -134,6 +144,10 @@ int _ct_run_tests(const char *suite_name, struct ct_ut *tests, int count,
         randomize(indexes, count);
         for (i = 0; i < count; ++i) {
             index = indexes[i];
+            if (_ct_state.use_filter &&
+                    regexec(&_ct_state.filter_regex, tests[index].test_name, 0, NULL, 0)) {
+                continue;
+            }
             printf(ANSI_COLOR_RESET);
             _ct_state.failed = 0;
             printf(ANSI_COLOR_GREEN "[RUN...] %s\n", tests[index].test_name);

@@ -11,6 +11,8 @@ static void test1(void **ctx)
     ASSERT_LE_INT(1, 2);
     ASSERT_LT_INT(1, 2);
     ASSERT_EQ_MEM(s1, s2, strlen(s1));
+    ASSERT_EQ_PTR(s1, s1);
+    ASSERT_EQ_PTR(s1, s2);
 }
 
 static void test2(void **ctx)
