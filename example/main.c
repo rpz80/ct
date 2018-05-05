@@ -43,5 +43,5 @@ int main(int argc, char *argv[])
         TEST(test1),
         TEST_SETUP_TEARDOWN(test2, test2_setup, test2_teardown)
     };
-    RUN_TESTS(testing_tests, NULL, NULL);
+    return RUN_TESTS(testing_tests, NULL, NULL);
 }

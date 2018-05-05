@@ -34,6 +34,11 @@ static void print_help()
     exit(EXIT_SUCCESS);
 }
 
+static long time_range_ms(const struct timeval* start, const struct timeval* end)
+{
+    return (end->tv_sec - start->tv_sec) * 1000 + (end->tv_usec - start->tv_usec) / 1000;
+}
+
 int ct_initialize(int argc, char *argv[])
 {
     int ch;
@@ -114,7 +119,7 @@ static void randomize(int *indexes, int count)
 int _ct_run_tests(const char *suite_name, struct ct_ut *tests, int count,
     int (*setup)(void **), int (*teardown)(void **))
 {
-    int i, r, success_count = 0, fail_count = 0, index;
+    int i, r, success_count = 0, fail_count = 0, index, result_code = 0;
     struct timeval iter_start, iter_end, start, end;
     char buf[256];
     int indexes[count];
@@ -164,19 +169,19 @@ int _ct_run_tests(const char *suite_name, struct ct_ut *tests, int count,
 
             gettimeofday(&iter_end, NULL);
             if (_ct_state.failed) {
+                result_code = -1;
                 fail_count++;
                 printf(ANSI_COLOR_RED "[..FAIL] %s\n", tests[index].test_name);
             } else {
                 success_count++;
                 printf(ANSI_COLOR_GREEN "[....OK] %s - %ld ms\n", tests[index].test_name,
-                    (iter_end.tv_sec - iter_start.tv_sec) * 1000 + (iter_end.tv_usec - iter_start.tv_usec) / 1000);
+                    time_range_ms(&iter_start, &iter_end));
             }
         }
     }
     gettimeofday(&end, NULL);
-    printf(ANSI_COLOR_RESET "Test suite %s finished. %d succeded, %d failed%s\nElapsed: %ld ms\n", suite_name,
-        success_count, fail_count, buf,
-        (end.tv_sec - start.tv_sec) * 1000 + (end.tv_usec - start.tv_usec) / 1000);
+    printf(ANSI_COLOR_RESET "Test suite %s finished. %d succeded, %d failed%s\nElapsed: %ld ms\n",
+        suite_name, success_count, fail_count, buf, time_range_ms(&start, &end));
 
-    return success_count + fail_count;
+    return result_code;
 }
