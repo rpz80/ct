@@ -6,8 +6,6 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <sys/time.h>
-#include <sys/types.h>
-#include <regex.h>
 
 struct ct_state _ct_state;
 
