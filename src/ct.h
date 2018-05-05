@@ -51,6 +51,14 @@
         } \
     } while (0)
 
+#define ASSERT_FALSE(expr) \
+    do { \
+        if ((expr)) { \
+            fprintf(stderr, ANSI_COLOR_RED ">>>> ASSERT_FALSE(%s) failed! File: %s, line: %d\n", #expr, __FILE__, __LINE__); \
+            _CT_FAILURE() \
+        } \
+    } while (0)
+
 #define ASSERT_EQ_INT(expected, actual) \
     do { \
         if ((expected) != (actual)) { \
