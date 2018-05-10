@@ -68,6 +68,15 @@
         } \
     } while (0)
 
+#define ASSERT_NE_INT(expected, actual) \
+    do { \
+        if ((expected) == (actual)) { \
+            fprintf(stderr, ANSI_COLOR_RED ">>>> ASSERT_NE_INT(%s (%lld), %s (%lld)) failed! File: %s, line: %d\n", \
+                #expected, (long long) (expected), #actual, (long long) (actual), __FILE__, __LINE__); \
+            _CT_FAILURE() \
+        } \
+    } while (0)
+
 #define ASSERT_LT_INT(expr1, expr2) \
     do { \
         if (!((expr1) < (expr2))) { \
@@ -95,10 +104,28 @@
         } \
     } while (0)
 
+#define ASSERT_NE_PTR(expected, actual) \
+    do { \
+        if ((expected) == (actual)) { \
+            fprintf(stderr, ANSI_COLOR_RED ">>>> ASSERT_NE_PTR(%s (%p), %s (%p)) failed! File: %s, line: %d\n", \
+                #expected, (expected), #actual, (actual), __FILE__, __LINE__); \
+            _CT_FAILURE() \
+        } \
+    } while (0)
+
 #define ASSERT_EQ_MEM(expected, actual, len) \
     do { \
         if (memcmp((expected), (actual), (len)) != 0) { \
             fprintf(stderr, ANSI_COLOR_RED ">>>> ASSERT_EQ_MEM(%s, %s) failed! File: %s, line: %d\n", \
+                #expected, #actual, __FILE__, __LINE__); \
+            _CT_FAILURE() \
+        } \
+    } while (0)
+
+#define ASSERT_NE_MEM(expected, actual, len) \
+    do { \
+        if (memcmp((expected), (actual), (len)) == 0) { \
+            fprintf(stderr, ANSI_COLOR_RED ">>>> ASSERT_NE_MEM(%s, %s) failed! File: %s, line: %d\n", \
                 #expected, #actual, __FILE__, __LINE__); \
             _CT_FAILURE() \
         } \
