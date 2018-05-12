@@ -57,7 +57,7 @@ int ct_initialize(int argc, char *argv[])
             break;
         case 'f':
             if (regcomp(&_ct_state.filter_regex, optarg, REG_EXTENDED | REG_ICASE | REG_NOSUB)) {
-                fprintf(stderr, "Invalid filter string\n");
+                fprintf(stdout, "Invalid filter string\n");
                 exit(EXIT_FAILURE);
             }
             _ct_state.use_filter = 1;
@@ -150,10 +150,11 @@ int _ct_run_tests(const char *suite_name, struct ct_ut *tests, int count,
     }
 
     gettimeofday(&start, NULL);
-    printf("\nRunning test suite %s%s\n", suite_name, buf);
+    fprintf(stdout, "========== %s%s =========\n", suite_name, buf);
+    fflush(stdout);
     for (r = 0; r < (_ct_state.repeat == 0 ? 1 : _ct_state.repeat); ++r) {
         if (_ct_state.repeat != 0)
-            printf(ANSI_COLOR_RESET "\nIteration %d\n", r + 1);
+            printf(ANSI_COLOR_RESET "Iteration %d\n", r + 1);
 
         randomize(indexes, count);
         for (i = 0; i < count; ++i) {
