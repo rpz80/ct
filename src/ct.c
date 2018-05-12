@@ -110,7 +110,7 @@ static void randomize(int *indexes, int count)
 
     for (i = 0; i < count; ++i) {
         j = i + rand() % (count - i);
-        (tmp) = indexes[i];
+        tmp = indexes[i];
         indexes[i] = indexes[j];
         indexes[j] = tmp;
     }
