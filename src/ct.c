@@ -119,7 +119,7 @@ static void randomize(int *indexes, int count)
 int _ct_run_tests(const char *suite_name, struct ct_ut *tests, int count,
     int (*setup)(void **), int (*teardown)(void **))
 {
-    int i, r, success_count = 0, fail_count = 0, index, result_code = 0;
+    int i, r, success_count = 0, fail_count = 0, index, result_code = 0, have_match = 0;
     struct timeval iter_start, iter_end, start, end;
     char buf[256];
     int indexes[count];
@@ -128,6 +128,17 @@ int _ct_run_tests(const char *suite_name, struct ct_ut *tests, int count,
     printf(ANSI_COLOR_RESET);
     if (!tests)
         return 0;
+
+    if (_ct_state.use_filter) {
+        for (i = 0; i < count; ++i) {
+            if (!regexec(&_ct_state.filter_regex, tests[i].test_name, 0, NULL, 0)) {
+                have_match = 1;
+                break;
+            }
+        }
+        if (!have_match)
+            return 0;
+    }
 
     memset(buf, 0, sizeof(buf));
     if (_ct_state.repeat > 0) {
