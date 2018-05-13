@@ -81,7 +81,7 @@
     do { \
         if (!((expr1) < (expr2))) { \
             fprintf(stdout, ANSI_COLOR_RED ">>>> ASSERT_LT_INT(%s (%d), %s (%d)) failed! File: %s, line: %d\n", \
-                #expr1, (expr1), #expr2, (expr2), __FILE__, __LINE__); \
+                #expr1, (long long) (expr1), #expr2, (long long) (expr2), __FILE__, __LINE__); \
             _CT_FAILURE() \
         } \
     } while (0)
@@ -90,7 +90,7 @@
     do { \
         if (!((expr1) <= (expr2))) { \
             fprintf(stdout, ANSI_COLOR_RED ">>>> ASSERT_LE_INT(%s (%d), %s (%d)) failed! File: %s, line: %d\n", \
-                #expr1, (expr1), #expr2, (expr2), __FILE__, __LINE__); \
+                #expr1, (long long) (expr1), #expr2, (long long) (expr2), __FILE__, __LINE__); \
             _CT_FAILURE() \
         } \
     } while (0)
