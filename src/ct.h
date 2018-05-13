@@ -80,7 +80,7 @@
 #define ASSERT_LT_INT(expr1, expr2) \
     do { \
         if (!((expr1) < (expr2))) { \
-            fprintf(stdout, ANSI_COLOR_RED ">>>> ASSERT_LT_INT(%s (%d), %s (%d)) failed! File: %s, line: %d\n", \
+            fprintf(stdout, ANSI_COLOR_RED ">>>> ASSERT_LT_INT(%s (%lld), %s (%lld)) failed! File: %s, line: %d\n", \
                 #expr1, (long long) (expr1), #expr2, (long long) (expr2), __FILE__, __LINE__); \
             _CT_FAILURE() \
         } \
@@ -89,7 +89,7 @@
 #define ASSERT_LE_INT(expr1, expr2) \
     do { \
         if (!((expr1) <= (expr2))) { \
-            fprintf(stdout, ANSI_COLOR_RED ">>>> ASSERT_LE_INT(%s (%d), %s (%d)) failed! File: %s, line: %d\n", \
+            fprintf(stdout, ANSI_COLOR_RED ">>>> ASSERT_LE_INT(%s (%lld), %s (%lld)) failed! File: %s, line: %d\n", \
                 #expr1, (long long) (expr1), #expr2, (long long) (expr2), __FILE__, __LINE__); \
             _CT_FAILURE() \
         } \
