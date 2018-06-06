@@ -27,7 +27,7 @@ static void print_help()
         "Usage <test> [-s] [-r count] [-h]\n"
         "  -r count   repeat tests count times\n"
         "  -s         random shuffle tests\n"
-        "  -e         exit on fail\n"
+        "  -e         sigtrap on failure\n"
         "  -f         filter (regular expression)\n"
         "  -h         print this help\n");
 

@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
+#include <signal.h>
 #include <regex.h>
 
 #define ANSI_COLOR_RED     "\x1b[31m"
@@ -40,6 +41,7 @@
     _ct_state.failed = 1; \
     if (_ct_state.exit_on_fail) { \
         printf(ANSI_COLOR_RESET); \
+        kill(0, SIGTRAP); \
         exit(EXIT_FAILURE); \
     } \
 
