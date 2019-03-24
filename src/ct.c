@@ -9,6 +9,134 @@
 
 struct ct_state _ct_state;
 
+struct MatchPair {
+    int patternPos;
+    int stringPos;
+};
+
+struct MatchPairStack {
+    // TODO: Make stack store pointers rather than elements and really remove elements in pop()
+    struct MatchPair **stack;
+    int pos;
+    int capacity;
+};
+
+static void MatchPairStack_init(struct MatchPairStack *stack)
+{
+    stack->stack = NULL;
+    stack->pos = 0;
+    stack->capacity = 0;
+}
+
+static void MatchPairStack_destroy(struct MatchPairStack *stack)
+{
+    free(stack->stack);
+}
+
+static struct MatchPair *MatchPairStack_pop(struct MatchPairStack *stack)
+{
+    if (stack->pos == 0)
+        return NULL;
+
+    stack->pos--;
+    return &stack->stack[stack->pos];
+}
+
+static void MatchPairStack_push(struct MatchPairStack *stack, const struct MatchPair *matchPair)
+{
+    if (stack->pos == stack->capacity) {
+        if (stack->capacity == 0) {
+            stack->capacity = 1;
+            stack->stack = malloc(sizeof(*matchPair));
+        } else {
+            stack->capacity *= 2;
+            stack->stack = realloc(stack->stack, sizeof(*matchPair) * stack->capacity);
+        }
+    }
+
+    stack->stack[stack->pos++] = *matchPair;
+}
+
+static int onlyWildcardsLeft(const char *pattern, int len, int start)
+{
+    for (int i = start; i < len; ++i) {
+        if (pattern[i] != '*')
+            return 0;
+    }
+
+    return 1;
+}
+
+static int match(const char *pattern, const char *string)
+{
+    struct MatchPairStack stack;
+    MatchPairStack_init(&stack);
+
+    struct MatchPair matchPair;
+    matchPair.patternPos = 0;
+    matchPair.stringPos = 0;
+
+    MatchPairStack_push(&stack, &matchPair);
+
+    int result = 0;
+    struct MatchPair *currentPair;
+    int patternLen = strlen(pattern);
+    int stringLen = strlen(string);
+
+    while ((currentPair = MatchPairStack_pop(&stack)) != NULL) {
+        if (result == 1)
+            break;
+
+        while (1) {
+            if (currentPair->patternPos == patternLen) {
+                if (currentPair->stringPos == stringLen) {
+                    result = 1;
+                    break;
+                } else {
+                    result = 0;
+                    break;
+                }
+            }
+
+            if (currentPair->stringPos == stringLen) {
+                if (onlyWildcardsLeft(pattern, patternLen, currentPair->patternPos)) {
+                    result = 1;
+                    break;
+                } else {
+                    result = 0;
+                    break;
+                }
+            }
+
+            if (pattern[currentPair->patternPos] == '*') {
+                if (onlyWildcardsLeft(pattern, patternLen, currentPair->patternPos)) {
+                    result = 1;
+                    break;
+                } else {
+                    for (; currentPair->stringPos < stringLen; ++currentPair->stringPos) {
+                        struct MatchPair pair;
+                        pair.patternPos = currentPair->patternPos + 1;
+                        pair.stringPos = currentPair->stringPos;
+                        MatchPairStack_push(&stack, &pair);
+                    }
+                    break;
+                }
+            } else {
+                if (pattern[currentPair->patternPos] == string[currentPair->stringPos]) {
+                    currentPair->patternPos++;
+                    currentPair->stringPos++;
+                } else {
+                    result = 0;
+                    break;
+                }
+            }
+        }
+    }
+
+    MatchPairStack_destroy(&stack);
+    return result;
+}
+
 static int get_int(const char* s)
 {
     int result = strtol(optarg, NULL, 10);
@@ -56,11 +184,7 @@ int ct_initialize(int argc, char *argv[])
             _ct_state.exit_on_fail = 1;
             break;
         case 'f':
-            if (regcomp(&_ct_state.filter_regex, optarg, REG_EXTENDED | REG_ICASE | REG_NOSUB)) {
-                fprintf(stdout, "Invalid filter string\n");
-                exit(EXIT_FAILURE);
-            }
-            _ct_state.use_filter = 1;
+            _ct_state.filter = optarg;
             break;
         case '?':
         case ':':
@@ -129,9 +253,9 @@ int _ct_run_tests(const char *suite_name, struct ct_ut *tests, int count,
     if (!tests)
         return 0;
 
-    if (_ct_state.use_filter) {
+    if (_ct_state.filter != NULL) {
         for (i = 0; i < count; ++i) {
-            if (!regexec(&_ct_state.filter_regex, tests[i].test_name, 0, NULL, 0)) {
+            if (match(_ct_state.filter, tests[i].test_name)) {
                 have_match = 1;
                 break;
             }
@@ -159,8 +283,7 @@ int _ct_run_tests(const char *suite_name, struct ct_ut *tests, int count,
         randomize(indexes, count);
         for (i = 0; i < count; ++i) {
             index = indexes[i];
-            if (_ct_state.use_filter &&
-                    regexec(&_ct_state.filter_regex, tests[index].test_name, 0, NULL, 0)) {
+            if (_ct_state.filter != NULL && !match(_ct_state.filter, tests[index].test_name)) {
                 continue;
             }
             printf(ANSI_COLOR_RESET);

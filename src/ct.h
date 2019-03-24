@@ -6,7 +6,6 @@
 #include <string.h>
 #include <sys/types.h>
 #include <signal.h>
-#include <regex.h>
 
 #define ANSI_COLOR_RED     "\x1b[31m"
 #define ANSI_COLOR_GREEN   "\x1b[32m"
@@ -138,8 +137,7 @@ struct ct_state {
     int shuffle;
     int exit_on_fail;
     int failed;
-    int use_filter;
-    regex_t filter_regex;
+    const char *filter;
 };
 
 extern struct ct_state _ct_state;
