@@ -14,8 +14,19 @@ struct MatchPair {
     int stringPos;
 };
 
+static struct MatchPair *MatchPair_create()
+{
+    struct MatchPair *result = malloc(sizeof(struct MatchPair));
+    memset(result, 0, sizeof(*result));
+    return result;
+}
+
+static void MatchPair_destroy(struct MatchPair *pair)
+{
+    free(pair);
+}
+
 struct MatchPairStack {
-    // TODO: Make stack store pointers rather than elements and really remove elements in pop()
     struct MatchPair **stack;
     int pos;
     int capacity;
@@ -24,37 +35,36 @@ struct MatchPairStack {
 static void MatchPairStack_init(struct MatchPairStack *stack)
 {
     stack->stack = NULL;
-    stack->pos = 0;
+    stack->pos = -1;
     stack->capacity = 0;
 }
 
-static void MatchPairStack_destroy(struct MatchPairStack *stack)
+static void MatchPairStack_deinit(struct MatchPairStack *stack)
 {
     free(stack->stack);
 }
 
 static struct MatchPair *MatchPairStack_pop(struct MatchPairStack *stack)
 {
-    if (stack->pos == 0)
+    if (stack->pos < 0)
         return NULL;
 
-    stack->pos--;
-    return &stack->stack[stack->pos];
+    return stack->stack[stack->pos--];
 }
 
-static void MatchPairStack_push(struct MatchPairStack *stack, const struct MatchPair *matchPair)
+static void MatchPairStack_push(struct MatchPairStack *stack, struct MatchPair *matchPair)
 {
-    if (stack->pos == stack->capacity) {
+    if (stack->pos + 1 == stack->capacity) {
         if (stack->capacity == 0) {
             stack->capacity = 1;
-            stack->stack = malloc(sizeof(*matchPair));
+            stack->stack = malloc(sizeof(void *));
         } else {
             stack->capacity *= 2;
-            stack->stack = realloc(stack->stack, sizeof(*matchPair) * stack->capacity);
+            stack->stack = realloc(stack->stack, sizeof(void *) * stack->capacity);
         }
     }
 
-    stack->stack[stack->pos++] = *matchPair;
+    stack->stack[++stack->pos] = matchPair;
 }
 
 static int onlyWildcardsLeft(const char *pattern, int len, int start)
@@ -72,11 +82,7 @@ static int match(const char *pattern, const char *string)
     struct MatchPairStack stack;
     MatchPairStack_init(&stack);
 
-    struct MatchPair matchPair;
-    matchPair.patternPos = 0;
-    matchPair.stringPos = 0;
-
-    MatchPairStack_push(&stack, &matchPair);
+    MatchPairStack_push(&stack, MatchPair_create());
 
     int result = 0;
     struct MatchPair *currentPair;
@@ -114,10 +120,10 @@ static int match(const char *pattern, const char *string)
                     break;
                 } else {
                     for (; currentPair->stringPos < stringLen; ++currentPair->stringPos) {
-                        struct MatchPair pair;
-                        pair.patternPos = currentPair->patternPos + 1;
-                        pair.stringPos = currentPair->stringPos;
-                        MatchPairStack_push(&stack, &pair);
+                        struct MatchPair *pair = MatchPair_create();
+                        pair->patternPos = currentPair->patternPos + 1;
+                        pair->stringPos = currentPair->stringPos;
+                        MatchPairStack_push(&stack, pair);
                     }
                     break;
                 }
@@ -131,9 +137,11 @@ static int match(const char *pattern, const char *string)
                 }
             }
         }
+
+        MatchPair_destroy(currentPair);
     }
 
-    MatchPairStack_destroy(&stack);
+    MatchPairStack_deinit(&stack);
     return result;
 }
 
