@@ -40,12 +40,30 @@ static int test2_teardown(void **ctx)
     return 0;
 }
 
+static void test3_part1(void **ctx)
+{
+
+}
+
+static void test3(void **ctx)
+{
+
+}
+
+static void test3part2(void **ctx)
+{
+
+}
+
 int main(int argc, char *argv[])
 {
     ct_initialize(argc, argv);
     struct ct_ut testing_tests[] = {
         TEST(test1),
-        TEST_SETUP_TEARDOWN(test2, test2_setup, test2_teardown)
+        TEST_SETUP_TEARDOWN(test2, test2_setup, test2_teardown),
+        TEST(test3_part1),
+        TEST(test3),
+        TEST(test3part2)
     };
     return RUN_TESTS(testing_tests, NULL, NULL);
 }
