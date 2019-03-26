@@ -5,9 +5,16 @@
 #include <errno.h>
 #include <stdio.h>
 #include <stdarg.h>
-#include <sys/time.h>
+
+#ifdef _UNIX
+    #include <sys/time.h>
+#endif
 
 struct ct_state _ct_state;
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// Simple glob-like string matcher. Supported symbols are: '*' - any value repeated any times,
+// ':' - OR separator.
 
 struct MatchPair {
     int patternPos;
@@ -145,6 +152,16 @@ static int match(const char *pattern, const char *string)
     return result;
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// Time functions.
+
+static long time_range_ms(const struct timeval* start, const struct timeval* end)
+{
+    return (end->tv_sec - start->tv_sec) * 1000 + (end->tv_usec - start->tv_usec) / 1000;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 static int get_int(const char* s)
 {
     int result = strtol(optarg, NULL, 10);
@@ -168,11 +185,6 @@ static void print_help()
         "  -h         print this help\n");
 
     exit(EXIT_SUCCESS);
-}
-
-static long time_range_ms(const struct timeval* start, const struct timeval* end)
-{
-    return (end->tv_sec - start->tv_sec) * 1000 + (end->tv_usec - start->tv_usec) / 1000;
 }
 
 int ct_initialize(int argc, char *argv[])
