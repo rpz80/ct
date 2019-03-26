@@ -5,8 +5,9 @@
 #include <errno.h>
 #include <stdio.h>
 #include <stdarg.h>
+#include <stdint.h>
 
-#ifdef _UNIX
+#if defined (__unix__)
     #include <sys/time.h>
 #endif
 
@@ -84,16 +85,18 @@ static int onlyWildcardsLeft(const char *pattern, int len, int start)
     return 1;
 }
 
-static int match(const char *pattern, const char *string)
+static int matchImpl(const char *pattern, int patternLen, const char *string)
 {
     struct MatchPairStack stack;
     MatchPairStack_init(&stack);
+
+    if (patternLen <= 0)
+        return 0;
 
     MatchPairStack_push(&stack, MatchPair_create());
 
     int result = 0;
     struct MatchPair *currentPair;
-    int patternLen = strlen(pattern);
     int stringLen = strlen(string);
 
     while ((currentPair = MatchPairStack_pop(&stack)) != NULL) {
@@ -152,12 +155,62 @@ static int match(const char *pattern, const char *string)
     return result;
 }
 
+static int match(const char *pattern, const char *string)
+{
+    const char *p;
+    for (p = pattern; *p != 0; ++p) {
+        if (*p == ':') {
+            if (matchImpl(pattern, p - pattern, string))
+                return 1;
+            pattern = p + 1;
+        }
+    }
+
+
+    return matchImpl(pattern, p - pattern, string);
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Time functions.
 
-static long time_range_ms(const struct timeval* start, const struct timeval* end)
+#if defined (__unix__)
+
+static int64_t nowMsUnix()
 {
-    return (end->tv_sec - start->tv_sec) * 1000 + (end->tv_usec - start->tv_usec) / 1000;
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    return tv->tv_sec * 1000 + tv->tv_usec / 1000;
+}
+
+#elif defined (_WIN32)
+
+static int64_t nowMsWin32()
+{
+    SYSTEMTIME systemTime;
+    GetSystemTime(&systemTime);
+
+    FILETIME fileTime;
+    SystemTimeToFileTime(&systemTime, &fileTime);
+
+    ULARGE_INTEGER largeInteger;
+    largeInteger.LowPart = fileTime.dwLowDateTime;
+    largeInteger.HighPart = fileTime.dwHighDateTime;
+
+    return largeInterger.QuadPart / 10000LL;
+}
+
+#endif
+
+
+static int64_t nowMs()
+{
+    #if defined (__unix__)
+        return nowMsUnix();
+    #elif defined (_WIN32)
+        return nowMsWin32();
+    #endif
+
+    return -1;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -240,11 +293,9 @@ static void report_failure(const char *fmt, ...)
 
 static void randomize(int *indexes, int count)
 {
-    struct timeval tv;
     int i, j, tmp;
 
-    gettimeofday(&tv, NULL);
-    srand(tv.tv_sec * 1000 * 1000 + tv.tv_usec);
+    srand(nowMs());
 
     for (i = 0; i < count; ++i)
         indexes[i] = i;
@@ -264,7 +315,7 @@ int _ct_run_tests(const char *suite_name, struct ct_ut *tests, int count,
     int (*setup)(void **), int (*teardown)(void **))
 {
     int i, r, success_count = 0, fail_count = 0, index, result_code = 0, have_match = 0;
-    struct timeval iter_start, iter_end, start, end;
+    int64_t iter_start, start;
     char buf[256];
     int indexes[count];
     int (* aux_func)(void **) = NULL;
@@ -293,7 +344,7 @@ int _ct_run_tests(const char *suite_name, struct ct_ut *tests, int count,
         snprintf(buf, sizeof(buf) - strlen(buf), ". Random shuffle enabled.");
     }
 
-    gettimeofday(&start, NULL);
+    start = nowMs();
     fprintf(stdout, "========== %s%s =========\n", suite_name, buf);
     fflush(stdout);
     for (r = 0; r < (_ct_state.repeat == 0 ? 1 : _ct_state.repeat); ++r) {
@@ -310,7 +361,7 @@ int _ct_run_tests(const char *suite_name, struct ct_ut *tests, int count,
             _ct_state.failed = 0;
             printf(ANSI_COLOR_GREEN "[RUN...] %s\n", tests[index].test_name);
             aux_func = tests[index].setup_func ? tests[index].setup_func : setup;
-            gettimeofday(&iter_start, NULL);
+            iter_start = nowMs();
 
             if (aux_func && aux_func(&tests[index].ctx) != 0) {
                 report_failure("setup() failed for %s", tests[index].test_name);
@@ -322,21 +373,19 @@ int _ct_run_tests(const char *suite_name, struct ct_ut *tests, int count,
                 }
             }
 
-            gettimeofday(&iter_end, NULL);
             if (_ct_state.failed) {
                 result_code = -1;
                 fail_count++;
                 printf(ANSI_COLOR_RED "[..FAIL] %s\n", tests[index].test_name);
             } else {
                 success_count++;
-                printf(ANSI_COLOR_GREEN "[....OK] %s - %ld ms\n", tests[index].test_name,
-                    time_range_ms(&iter_start, &iter_end));
+                printf(ANSI_COLOR_GREEN "[....OK] %s - %lld ms\n", tests[index].test_name,
+                    nowMs() - iter_start);
             }
         }
     }
-    gettimeofday(&end, NULL);
-    printf(ANSI_COLOR_RESET "Test suite %s finished. %d succeded, %d failed%s\nElapsed: %ld ms\n",
-        suite_name, success_count, fail_count, buf, time_range_ms(&start, &end));
+    printf(ANSI_COLOR_RESET "Test suite %s finished. %d succeded, %d failed%s\nElapsed: %lld ms\n",
+        suite_name, success_count, fail_count, buf, nowMs() - start);
 
     return result_code;
 }
