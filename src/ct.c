@@ -1,11 +1,11 @@
 #include "ct.h"
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdarg.h>
 #include <stdint.h>
+#include <ctype.h>
 
 #if defined (__unix__)
     #include <sys/time.h>
@@ -201,7 +201,6 @@ static int64_t nowMsWin32()
 
 #endif
 
-
 static int64_t nowMs()
 {
     #if defined (__unix__)
@@ -214,10 +213,103 @@ static int64_t nowMs()
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+// Options parsing
+
+enum OptionsParseState {
+    OptionsParseState_waitingForMinus,
+    OptionsParseState_waitingForKey,
+    OptionsParseState_waitingForArgument,
+    OptionsParseState_done
+};
+
+struct OptionsContext {
+    const char *argument;
+    enum OptionsParseState state;
+    int argc;
+};
+
+static void OptionsContext_init(struct OptionsContext *optionsContext)
+{
+    optionsContext->argument = NULL;
+    optionsContext->state = OptionsParseState_waitingForMinus;
+    optionsContext->argc = 1;
+}
+
+enum OptionsKeyPresence {
+    OptionsKeyPresence_yes,
+    OptionsKeyPresence_yesWithArgument,
+    OptionsKeyPresence_no
+};
+
+static enum OptionsKeyPresence isKeyPresent(const char *optionString, int key)
+{
+    for (int i = 0; i < strlen(optionString); ++i) {
+        if (optionString[i] == key) {
+            if (i < strlen(optionString - 1) && optionString[i + 1] == ':') {
+                return OptionsKeyPresence_yesWithArgument;
+            }
+            return OptionsKeyPresence_yes;
+        }
+    }
+
+    return OptionsKeyPresence_no;
+}
+
+int getOption(
+    struct OptionsContext *context, int argc, char *argv[], const char *optionString)
+{
+    enum OptionsKeyPresence keyPresence;
+    while (1) {
+        switch (context->state) {
+            case OptionsParseState_waitingForMinus:
+                if (context->argc >= argc) {
+                    context->state = OptionsParseState_done;
+                    break;
+                }
+                if (argv[context->argc][0] != '-') {
+                    context->state = OptionsParseState_done;
+                    break;
+                }
+                context->state = OptionsParseState_waitingForKey;
+                break;
+            case OptionsParseState_waitingForKey:
+                if (strlen(argv[context->argc]) == 1 || !isalpha(argv[context->argc][1])) {
+                    context->state = OptionsParseState_done;
+                    break;
+                }
+                keyPresence = isKeyPresent(optionString, argv[context->argc][1]);
+                switch (keyPresence) {
+                    case OptionsKeyPresence_no:
+                        context->state = OptionsParseState_waitingForMinus;
+                        break;
+                    case OptionsKeyPresence_yes:
+                        context->argc++;
+                        context->state = OptionsParseState_waitingForMinus;
+                        context->argument = NULL;
+                        return argv[context->argc - 1][1];
+                    case OptionsKeyPresence_yesWithArgument:
+                        context->state = OptionsParseState_waitingForArgument;
+                        break;
+                }
+                context->argc++;
+                break;
+            case OptionsParseState_waitingForArgument:
+                if (context->argc >= argc) {
+                    context->state = OptionsParseState_done;
+                    break;
+                }
+                context->argument = argv[context->argc];
+                context->state = OptionsParseState_waitingForMinus;
+                return argv[context->argc - 1][1];
+            case OptionsParseState_done:
+                return -1;
+        }
+    }
+}
 
 static int get_int(const char* s)
 {
-    int result = strtol(optarg, NULL, 10);
+    int result = strtol(s, NULL, 10);
     if (result == 0 && errno == EINVAL) {
         perror("Invalid 'repeat' value");
         exit(EXIT_FAILURE);
@@ -225,6 +317,8 @@ static int get_int(const char* s)
 
     return result;
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 static void print_help()
 {
@@ -243,27 +337,29 @@ static void print_help()
 int ct_initialize(int argc, char *argv[])
 {
     int ch;
+    struct OptionsContext optionsContext;
 
     memset(&_ct_state, 0, sizeof(_ct_state));
-    while ((ch = getopt(argc, argv, "hr:sef:")) != -1) {
+    OptionsContext_init(&optionsContext);
+    while ((ch = getOption(&optionsContext, argc, argv, "hr:sef:")) != -1) {
         switch (ch) {
-        case 'r':
-            _ct_state.repeat = get_int(optarg);
-            break;
-        case 's':
-            _ct_state.shuffle = 1;
-            break;
-        case 'e':
-            _ct_state.exit_on_fail = 1;
-            break;
-        case 'f':
-            _ct_state.filter = optarg;
-            break;
-        case '?':
-        case ':':
-        case 'h':
-            print_help();
-            break;
+            case 'r':
+                _ct_state.repeat = get_int(optionsContext.argument);
+                break;
+            case 's':
+                _ct_state.shuffle = 1;
+                break;
+            case 'e':
+                _ct_state.exit_on_fail = 1;
+                break;
+            case 'f':
+                _ct_state.filter = optionsContext.argument;
+                break;
+            case '?':
+            case ':':
+            case 'h':
+                print_help();
+                break;
         }
     }
 
@@ -311,8 +407,9 @@ static void randomize(int *indexes, int count)
     }
 }
 
-int _ct_run_tests(const char *suite_name, struct ct_ut *tests, int count,
-    int (*setup)(void **), int (*teardown)(void **))
+int _ct_run_tests(
+    const char *suite_name, struct ct_ut *tests, int count, int (*setup)(void **),
+    int (*teardown)(void **))
 {
     int i, r, success_count = 0, fail_count = 0, index, result_code = 0, have_match = 0;
     int64_t iter_start, start;
