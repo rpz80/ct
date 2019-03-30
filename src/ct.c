@@ -245,7 +245,7 @@ static enum OptionsKeyPresence isKeyPresent(const char *optionString, int key)
 {
     for (int i = 0; i < strlen(optionString); ++i) {
         if (optionString[i] == key) {
-            if (i < strlen(optionString - 1) && optionString[i + 1] == ':') {
+            if (i < strlen(optionString) - 1 && optionString[i + 1] == ':') {
                 return OptionsKeyPresence_yesWithArgument;
             }
             return OptionsKeyPresence_yes;
@@ -283,10 +283,9 @@ int getOption(
                         context->state = OptionsParseState_waitingForMinus;
                         break;
                     case OptionsKeyPresence_yes:
-                        context->argc++;
                         context->state = OptionsParseState_waitingForMinus;
                         context->argument = NULL;
-                        return argv[context->argc - 1][1];
+                        return argv[context->argc++][1];
                     case OptionsKeyPresence_yesWithArgument:
                         context->state = OptionsParseState_waitingForArgument;
                         break;
@@ -298,9 +297,9 @@ int getOption(
                     context->state = OptionsParseState_done;
                     break;
                 }
-                context->argument = argv[context->argc];
+                context->argument = argv[context->argc++];
                 context->state = OptionsParseState_waitingForMinus;
-                return argv[context->argc - 1][1];
+                return argv[context->argc - 2][1];
             case OptionsParseState_done:
                 return -1;
         }
