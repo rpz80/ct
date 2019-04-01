@@ -4,8 +4,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/types.h>
-#include <signal.h>
 
 #define ANSI_COLOR_RED     "\x1b[31m"
 #define ANSI_COLOR_GREEN   "\x1b[32m"
@@ -38,9 +36,10 @@
 
 #define _CT_FAILURE() \
     _ct_state.failed = 1; \
-    if (_ct_state.exit_on_fail) { \
+    if (_ct_state.break_on_fail) { \
         printf(ANSI_COLOR_RESET); \
-        kill(0, SIGTRAP); \
+        volatile int *_dummy__ = NULL; \
+        (*_dummy__) = 42; \
         exit(EXIT_FAILURE); \
     } \
 
@@ -135,7 +134,7 @@
 struct ct_state {
     int repeat;
     int shuffle;
-    int exit_on_fail;
+    int break_on_fail;
     int failed;
     const char *filter;
 };
@@ -148,8 +147,8 @@ struct ct_ut {
     const char* test_name;
     void *ctx;
     void (* test_func)(void **);
-    int (* setup_func)(void **);
-    int (* teardown_func)(void **);
+    void (* setup_func)(void **);
+    void (* teardown_func)(void **);
 };
 
 int _ct_run_tests(const char *suite_name, struct ct_ut *tests, int count, int (*setup)(void **),

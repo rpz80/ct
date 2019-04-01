@@ -9,6 +9,8 @@
 
 #if defined (__unix__)
     #include <sys/time.h>
+#elif defined (_WIN32)
+    #include <windows.h>
 #endif
 
 struct ct_state _ct_state;
@@ -326,7 +328,7 @@ static void print_help()
         "Usage <test> [-s] [-r count] [-h]\n"
         "  -r count   repeat tests count times\n"
         "  -s         random shuffle tests\n"
-        "  -e         sigtrap on failure\n"
+        "  -c         crash on failure\n"
         "  -f         filter (regular expression)\n"
         "  -h         print this help\n");
 
@@ -340,7 +342,7 @@ int ct_initialize(int argc, char *argv[])
 
     memset(&_ct_state, 0, sizeof(_ct_state));
     OptionsContext_init(&optionsContext);
-    while ((ch = getOption(&optionsContext, argc, argv, "hr:sef:")) != -1) {
+    while ((ch = getOption(&optionsContext, argc, argv, "hr:scf:")) != -1) {
         switch (ch) {
             case 'r':
                 _ct_state.repeat = get_int(optionsContext.argument);
@@ -348,8 +350,8 @@ int ct_initialize(int argc, char *argv[])
             case 's':
                 _ct_state.shuffle = 1;
                 break;
-            case 'e':
-                _ct_state.exit_on_fail = 1;
+            case 'c':
+                _ct_state.break_on_fail = 1;
                 break;
             case 'f':
                 _ct_state.filter = optionsContext.argument;
@@ -366,24 +368,6 @@ int ct_initialize(int argc, char *argv[])
         _ct_state.repeat = 0;
 
     return 0;
-}
-
-static void report_failure(const char *fmt, ...)
-{
-    va_list ap;
-    char buf[256];
-
-    va_start(ap, fmt);
-    snprintf(buf, sizeof(buf), ANSI_COLOR_RED);
-    snprintf(buf + strlen(ANSI_COLOR_RED), sizeof(buf) - strlen(ANSI_COLOR_RED),
-        ">>>> FAILURE: %s\n", fmt);
-    vprintf(buf, ap);
-    va_end(ap);
-
-    printf(ANSI_COLOR_RESET);
-    _ct_state.failed = 1;
-    if (_ct_state.exit_on_fail)
-        exit(EXIT_FAILURE);
 }
 
 static void randomize(int *indexes, int count)
@@ -414,7 +398,6 @@ int _ct_run_tests(
     int64_t iter_start, start;
     char buf[256];
     int indexes[count];
-    int (* aux_func)(void **) = NULL;
 
     printf(ANSI_COLOR_RESET);
     if (!tests)
@@ -456,18 +439,13 @@ int _ct_run_tests(
             printf(ANSI_COLOR_RESET);
             _ct_state.failed = 0;
             printf(ANSI_COLOR_GREEN "[RUN...] %s\n", tests[index].test_name);
-            aux_func = tests[index].setup_func ? tests[index].setup_func : setup;
             iter_start = nowMs();
 
-            if (aux_func && aux_func(&tests[index].ctx) != 0) {
-                report_failure("setup() failed for %s", tests[index].test_name);
-            } else {
-                tests[index].test_func(&tests[index].ctx);
-                aux_func = tests[index].teardown_func ? tests[index].teardown_func : teardown;
-                if (aux_func && aux_func(&tests[index].ctx) != 0) {
-                    report_failure("teardown() failed for %s", tests[index].test_name);
-                }
-            }
+            if (tests[index].setup_func)
+                tests[index].setup_func(&tests[index].ctx);
+            tests[index].test_func(&tests[index].ctx);
+            if (tests[index].teardown_func)
+                tests[index].teardown_func(&tests[index].ctx);
 
             if (_ct_state.failed) {
                 result_code = -1;

@@ -25,19 +25,16 @@ static void test2(void **ctx)
     ASSERT_TRUE(0 == 0);
 }
 
-static int test2_setup(void **ctx)
+static void test2_setup(void **ctx)
 {
     int *i = (int *) malloc(sizeof(int));
     *i =42;
     *ctx = i;
-    
-    return 1; // this will cause failure
 }
 
-static int test2_teardown(void **ctx)
+static void test2_teardown(void **ctx)
 {
     free(*ctx);
-    return 0;
 }
 
 static void test3_part1(void **ctx)
