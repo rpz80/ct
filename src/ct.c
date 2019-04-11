@@ -99,7 +99,7 @@ static int matchImpl(const char *pattern, int patternLen, const char *string)
 
     int result = 0;
     struct MatchPair *currentPair;
-    int stringLen = strlen(string);
+    int stringLen = (int) strlen(string);
 
     while ((currentPair = MatchPairStack_pop(&stack)) != NULL) {
         if (result == 1)
@@ -162,14 +162,14 @@ static int match(const char *pattern, const char *string)
     const char *p;
     for (p = pattern; *p != 0; ++p) {
         if (*p == ':') {
-            if (matchImpl(pattern, p - pattern, string))
+            if (matchImpl(pattern, (int) (p - pattern), string))
                 return 1;
             pattern = p + 1;
         }
     }
 
 
-    return matchImpl(pattern, p - pattern, string);
+    return matchImpl(pattern, (int) (p - pattern), string);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -198,7 +198,7 @@ static int64_t nowMsWin32()
     largeInteger.LowPart = fileTime.dwLowDateTime;
     largeInteger.HighPart = fileTime.dwHighDateTime;
 
-    return largeInterger.QuadPart / 10000LL;
+    return largeInteger.QuadPart / 10000LL;
 }
 
 #endif
@@ -374,7 +374,7 @@ static void randomize(int *indexes, int count)
 {
     int i, j, tmp;
 
-    srand(nowMs());
+    srand((unsigned) nowMs());
 
     for (i = 0; i < count; ++i)
         indexes[i] = i;
@@ -397,11 +397,11 @@ int _ct_run_tests(
     int i, r, success_count = 0, fail_count = 0, index, result_code = 0, have_match = 0;
     int64_t iter_start, start;
     char buf[256];
-    int indexes[count];
+    int *indexes = malloc(count * sizeof(int));
 
     printf(ANSI_COLOR_RESET);
     if (!tests)
-        return 0;
+        goto end;
 
     if (_ct_state.filter != NULL) {
         for (i = 0; i < count; ++i) {
@@ -411,7 +411,7 @@ int _ct_run_tests(
             }
         }
         if (!have_match)
-            return 0;
+            goto end;
     }
 
     memset(buf, 0, sizeof(buf));
@@ -458,8 +458,10 @@ int _ct_run_tests(
             }
         }
     }
-    printf(ANSI_COLOR_RESET "Test suite %s finished. %d succeded, %d failed%s\nElapsed: %lld ms\n",
+    printf(ANSI_COLOR_RESET "Test suite %s finished. %d succeeded, %d failed%s\nElapsed: %lld ms\n",
         suite_name, success_count, fail_count, buf, nowMs() - start);
 
+end:
+    free(indexes);
     return result_code;
 }
